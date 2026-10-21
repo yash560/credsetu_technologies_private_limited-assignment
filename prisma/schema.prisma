@@ -1,0 +1,51 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String      @id @default(uuid())
+  phone     String      @unique
+  name      String?     @default("MiniLedger User")
+  loans     LoanEntry[]
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model OtpSession {
+  id        String   @id @default(uuid())
+  phone     String
+  otp       String
+  expiresAt DateTime @map("expires_at")
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([phone, expiresAt])
+  @@map("otp_sessions")
+}
+
+model LoanEntry {
+  id         String    @id @default(uuid())
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String?   @map("user_id")
+  phone      String
+  friendName String    @map("friend_name")
+  amount     Float
+  dueDate    DateTime  @map("due_date")
+  isRepaid   Boolean   @default(false) @map("is_repaid")
+  repaidAt   DateTime? @map("repaid_at")
+  notes      String?
+  receiptUrl String?   @map("receipt_url")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@index([phone, dueDate, isRepaid])
+  @@index([isRepaid])
+  @@map("loans")
+}
