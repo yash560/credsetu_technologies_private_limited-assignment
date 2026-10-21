@@ -33,6 +33,15 @@
 
 ---
 
+## 🌐 Live Production Deployment
+
+- **Live Application**: [credsetutechnologiesprivatelimited.vercel.app](https://credsetutechnologiesprivatelimited.vercel.app)
+- **Live Summary API**: [credsetutechnologiesprivatelimited.vercel.app/api/summary](https://credsetutechnologiesprivatelimited.vercel.app/api/summary)
+- **Live Overdue Loans API**: [credsetutechnologiesprivatelimited.vercel.app/api/loans?filter=overdue](https://credsetutechnologiesprivatelimited.vercel.app/api/loans?filter=overdue)
+- **GitHub Repository**: [github.com/yash560/credsetu_technologies_private_limited-assignment](https://github.com/yash560/credsetu_technologies_private_limited-assignment)
+
+---
+
 ## 🏛️ System Architecture & Monorepo Structure
 
 MiniLedger is organized as a clean multi-platform monorepo:
