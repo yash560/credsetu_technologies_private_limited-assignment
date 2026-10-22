@@ -20,10 +20,12 @@ Author: Product Architect Subagent (TheWebVale Engine)
 
 ## 🌲 Complete Functional Feature Decomposition Tree
 
-### Module 1: Smart Identity & Session Cockpit
-- **1.1 Phone & OTP Authentication**: Clean 10-digit mobile number entry, instantaneous real OTP delivery, secure session cookie.
-- **1.2 Multi-Account / Multi-Workspace Selector**: Personal Ledger vs Shared Group/Trip Ledger.
-- **1.3 User Profile Squircle**: Initials badge, phone number, total net balance pill (`+₹12,400` in emerald).
+### Module 1: Sovereign Identity, Authentication & Security Engine
+- **1.1 Zero-Stub Full Authentication**: Dual-track Email & Password authentication with bcrypt salt rounds (10+) and persistent JWT session cookies.
+- **1.2 Real SMTP Password Recovery Loop**: Dispatches master responsive HTML emails via TheWebVale Sovereign SMTP with cryptographic 32-byte tokens and 6-digit backup security codes.
+- **1.3 Master HTML Transactional Email Templates**: Responsive, dark/light contrast email layouts for Password Reset, Account Welcome/Verification, and Courteous Debt Settlement notices.
+- **1.4 Session State & Account Settings**: Secure HTTP-only cookie session management, dynamic avatar squircle, profile updates, and password change.
+- **1.5 Multi-Account & Demo Quick-Login**: 1-click identity switching between verified user identities (Yash Jain, Rahul Verma) with persistent local storage hydration.
 
 ### Module 2: The 3-Zone Ledger Cockpit Layout
 - **2.1 Left Navigation Rail (`w-64`)**:
