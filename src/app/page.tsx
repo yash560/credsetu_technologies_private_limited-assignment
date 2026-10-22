@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { Sidebar } from '@/components/Sidebar';
 import { HeroBanner } from '@/components/HeroBanner';
@@ -14,7 +14,15 @@ import { ReceiptModal } from '@/components/ReceiptModal';
 import { AddLoanDesktopModal } from '@/components/AddLoanDesktopModal';
 import { WhatsAppReminderModal } from '@/components/WhatsAppReminderModal';
 import { MobileSimulator } from '@/components/MobileSimulator';
+import { AuthModal } from '@/components/AuthModal';
+import { SkeletonCockpit } from '@/components/SkeletonCockpit';
+import { FriendsDirectoryView } from '@/components/views/FriendsDirectoryView';
+import { RepaymentScheduleView } from '@/components/views/RepaymentScheduleView';
+import { ReceiptsGalleryView } from '@/components/views/ReceiptsGalleryView';
+import { MonthlyAnalyticsView } from '@/components/views/MonthlyAnalyticsView';
+import { SpaceDetailView } from '@/components/views/SpaceDetailView';
 import { LoanEntry, LoanSummary, LoanFilter } from '@/types';
+import { tactile } from '@/lib/tactileFeedback';
 import {
   Menu,
   Search,
@@ -28,23 +36,39 @@ import {
   Bell,
   Sparkles,
   CheckCircle2,
+  Undo2,
+  UserCheck,
+  X,
 } from 'lucide-react';
 
 export default function Home() {
   // Theme State
-  const [isDark, setIsDark] = useState(false); // Default to clean light mode matching concept image
+  const [isDark, setIsDark] = useState(false);
 
   // Navigation & Category Filter
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState('dashboard');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  // Search State & Keyboard Ref
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Modals & Drawers
   const [isLogOpen, setIsLogOpen] = useState(false);
   const [isArchOpen, setIsArchOpen] = useState(false);
   const [isMobileSimOpen, setIsMobileSimOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [activeReceiptUrl, setActiveReceiptUrl] = useState<string | null>(null);
   const [selectedReminderLoan, setSelectedReminderLoan] = useState<LoanEntry | null>(null);
+  const [prefillFriendName, setPrefillFriendName] = useState<string | undefined>();
+  const [prefillNotes, setPrefillNotes] = useState<string | undefined>();
+
+  // Optimistic Undo Toast
+  const [undoAction, setUndoAction] = useState<{
+    text: string;
+    undo: () => Promise<void>;
+  } | null>(null);
 
   // Auth & Phone Context
   const [activePhone, setActivePhone] = useState('+919876543210');
@@ -55,8 +79,33 @@ export default function Home() {
   const [summary, setSummary] = useState<LoanSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Initialize stored phone if any
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('miniledger_phone');
+      if (stored) setActivePhone(stored);
+    }
+  }, []);
+
+  // Global Keyboard Shortcut: '/' to focus search, 'Escape' to dismiss
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        tactile.subtle();
+      } else if (e.key === 'Escape') {
+        if (searchQuery) setSearchQuery('');
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [searchQuery]);
+
   // Dark Mode Toggle
   const toggleDark = () => {
+    tactile.subtle();
     const next = !isDark;
     setIsDark(next);
     if (next) {
@@ -69,6 +118,7 @@ export default function Home() {
   // Load Ledger Data
   const loadLedgerData = useCallback(async () => {
     try {
+      setLoading(true);
       const [sumRes, loansRes] = await Promise.all([
         fetch(`/api/summary?phone=${encodeURIComponent(activePhone)}`),
         fetch(`/api/loans?phone=${encodeURIComponent(activePhone)}&filter=all`),
@@ -92,6 +142,7 @@ export default function Home() {
 
   // Handlers
   const handleToggleRepay = async (id: string, currentRepaid: boolean) => {
+    tactile.tap();
     try {
       const res = await fetch(`/api/loans/${id}/repay`, {
         method: 'PATCH',
@@ -100,20 +151,63 @@ export default function Home() {
       });
       if (res.ok) {
         if (!currentRepaid) {
+          tactile.success();
           confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
         }
         await loadLedgerData();
+
+        // Trigger optimistic undo toast
+        setUndoAction({
+          text: currentRepaid ? 'Marked as pending' : 'Marked as settled',
+          undo: async () => {
+            await fetch(`/api/loans/${id}/repay`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ is_repaid: currentRepaid }),
+            });
+            await loadLedgerData();
+          },
+        });
+        setTimeout(() => setUndoAction(null), 5000);
       }
     } catch (e) {
       console.error('Repayment toggle error:', e);
+      tactile.warning();
     }
   };
 
   const handleDeleteLoan = async (id: string) => {
+    tactile.warning();
     try {
+      const deletedLoan = loans.find((l) => l.id === id);
       const res = await fetch(`/api/loans/${id}`, { method: 'DELETE' });
       if (res.ok) {
         await loadLedgerData();
+
+        if (deletedLoan) {
+          setUndoAction({
+            text: `Deleted loan for ${deletedLoan.friend_name}`,
+            undo: async () => {
+              await fetch('/api/loans', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-user-phone': activePhone,
+                },
+                body: JSON.stringify({
+                  phone: deletedLoan.phone,
+                  friend_name: deletedLoan.friend_name,
+                  amount: deletedLoan.amount,
+                  due_date: deletedLoan.due_date,
+                  notes: deletedLoan.notes,
+                  receipt_url: deletedLoan.receipt_url,
+                }),
+              });
+              await loadLedgerData();
+            },
+          });
+          setTimeout(() => setUndoAction(null), 5000);
+        }
       }
     } catch (e) {
       console.error('Delete loan error:', e);
@@ -137,15 +231,18 @@ export default function Home() {
         body: JSON.stringify(data),
       });
       if (res.ok) {
+        tactile.success();
         await loadLedgerData();
         confetti({ particleCount: 30, spread: 50, origin: { y: 0.5 } });
       }
     } catch (e) {
       console.error('Create loan error:', e);
+      tactile.warning();
     }
   };
 
   const handleResetData = async () => {
+    tactile.tap();
     try {
       await fetch('/api/seed', {
         method: 'POST',
@@ -153,13 +250,16 @@ export default function Home() {
         body: JSON.stringify({ phone: activePhone }),
       });
       await loadLedgerData();
+      tactile.success();
       confetti({ particleCount: 35, spread: 70, origin: { y: 0.3 } });
     } catch (e) {
       console.error('Seed reset error:', e);
+      tactile.warning();
     }
   };
 
   const handleExportCsv = () => {
+    tactile.subtle();
     const headers = ['ID', 'Friend Name', 'Amount (INR)', 'Due Date', 'Status', 'Repaid At', 'Notes'];
     const rows = loans.map((l) => [
       l.id,
@@ -206,15 +306,15 @@ export default function Home() {
     return Boolean(data.success);
   };
 
-  // Filter loans based on active sidebar category
-  const displayedLoans = loans.filter((l) => {
-    if (activeCategory === 'overdue') return l.is_overdue && !l.is_repaid;
-    if (activeCategory === 'settled') return l.is_repaid;
-    if (activeCategory === 'dining') return l.notes?.toLowerCase().includes('dinner') || l.notes?.toLowerCase().includes('dining');
-    if (activeCategory === 'trips') return l.notes?.toLowerCase().includes('trip') || l.notes?.toLowerCase().includes('flight') || l.notes?.toLowerCase().includes('goa');
-    if (activeCategory === 'bills') return l.notes?.toLowerCase().includes('rent') || l.notes?.toLowerCase().includes('bill');
-    if (activeCategory === 'cash') return l.notes?.toLowerCase().includes('cash');
-    return true;
+  // Filter loans based on search query
+  const searchedLoans = loans.filter((l) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    const matchName = l.friend_name.toLowerCase().includes(q);
+    const matchNotes = l.notes?.toLowerCase().includes(q) ?? false;
+    const matchAmt = l.amount.toString().includes(q);
+    const matchDate = l.due_date.includes(q);
+    return matchName || matchNotes || matchAmt || matchDate;
   });
 
   const overdueCount = loans.filter((l) => l.is_overdue && !l.is_repaid).length;
@@ -223,55 +323,196 @@ export default function Home() {
     .filter((l) => !l.is_overdue && !l.is_repaid)
     .reduce((acc, curr) => acc + curr.amount, 0);
 
+  // Render the current view according to activeCategory
+  const renderCurrentView = () => {
+    if (activeCategory === 'friends') {
+      return (
+        <FriendsDirectoryView
+          loans={searchedLoans}
+          onSendReminder={(loan) => setSelectedReminderLoan(loan)}
+          onOpenAddModal={(name) => {
+            setPrefillFriendName(name);
+            setIsAddModalOpen(true);
+          }}
+          onToggleRepay={handleToggleRepay}
+        />
+      );
+    }
+
+    if (activeCategory === 'schedule') {
+      return (
+        <RepaymentScheduleView
+          loans={searchedLoans}
+          onSendReminder={(loan) => setSelectedReminderLoan(loan)}
+          onToggleRepay={handleToggleRepay}
+        />
+      );
+    }
+
+    if (activeCategory === 'receipts') {
+      return (
+        <ReceiptsGalleryView
+          loans={searchedLoans}
+          onViewReceipt={(url) => setActiveReceiptUrl(url)}
+          onOpenAddModal={() => setIsAddModalOpen(true)}
+        />
+      );
+    }
+
+    if (activeCategory === 'analytics') {
+      return (
+        <MonthlyAnalyticsView
+          loans={searchedLoans}
+          summary={summary}
+        />
+      );
+    }
+
+    if (['dining', 'trips', 'bills', 'cash'].includes(activeCategory)) {
+      return (
+        <SpaceDetailView
+          spaceId={activeCategory}
+          loans={searchedLoans}
+          onOpenAddModal={(notes) => {
+            setPrefillNotes(notes);
+            setIsAddModalOpen(true);
+          }}
+          onSendReminder={(loan) => setSelectedReminderLoan(loan)}
+          onToggleRepay={handleToggleRepay}
+          onViewReceipt={(url) => setActiveReceiptUrl(url)}
+        />
+      );
+    }
+
+    // Default: Master 3-Zone Cockpit
+    return (
+      <div className="space-y-7">
+        {/* 2A: Hero Greeting Card */}
+        <HeroBanner
+          overdueCount={overdueCount}
+          upcomingCount={upcomingCount}
+          upcomingAmount={upcomingAmount}
+          onRecordClick={() => setIsAddModalOpen(true)}
+        />
+
+        {/* 2B: Quick Ledger Hub */}
+        <QuickLedgerHub
+          onLoanCreated={loadLedgerData}
+          activePhone={activePhone}
+        />
+
+        {/* 2C: Split Bento Performance Section */}
+        <SplitBento
+          summary={summary}
+          onOpenReminderModal={() => {
+            const overdueLoan = loans.find((l) => l.is_overdue && !l.is_repaid) || loans[0];
+            if (overdueLoan) setSelectedReminderLoan(overdueLoan);
+          }}
+        />
+
+        {/* 2D: Priority Action Ledger */}
+        <PriorityActionLedger
+          loans={searchedLoans}
+          onToggleRepay={handleToggleRepay}
+          onDeleteLoan={handleDeleteLoan}
+          onViewReceipt={(url) => setActiveReceiptUrl(url)}
+          onSendReminder={(loan) => setSelectedReminderLoan(loan)}
+        />
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#070b12] text-slate-900 dark:text-slate-100 flex transition-colors selection:bg-emerald-500/20 selection:text-emerald-700">
       {/* Zone 1: Left Navigation Rail */}
       <Sidebar
         activeCategory={activeCategory}
-        setActiveCategory={setActiveCategory}
+        setActiveCategory={(cat) => {
+          setActiveCategory(cat);
+          setSearchQuery('');
+        }}
         overdueCount={overdueCount}
         friendsCount={new Set(loans.map((l) => l.friend_name)).size}
+        receiptsCount={loans.filter((l) => Boolean(l.receipt_url)).length}
         isMobileOpen={isMobileNavOpen}
         onCloseMobile={() => setIsMobileNavOpen(false)}
         onOpenAssistant={() => {
-          if (loans.length > 0) {
-            setSelectedReminderLoan(loans[0]);
-          }
+          if (loans.length > 0) setSelectedReminderLoan(loans[0]);
         }}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        activePhone={activePhone}
       />
 
       {/* Main Workspace Cockpit (Zone 2 + Zone 3) */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-30 h-16 bg-white/80 dark:bg-[#0d131f]/80 backdrop-blur-md border-b border-slate-200/80 dark:border-white/10 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-          {/* Mobile hamburger & Search */}
+        <header className="sticky top-0 z-30 h-16 bg-white/85 dark:bg-[#0d131f]/85 backdrop-blur-md border-b border-slate-200/80 dark:border-white/10 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+          {/* Mobile hamburger & Functional Search */}
           <div className="flex items-center gap-3 flex-1 max-w-xl">
             <button
               type="button"
-              onClick={() => setIsMobileNavOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
+              onClick={() => {
+                tactile.tap();
+                setIsMobileNavOpen(true);
+              }}
+              className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 touch-icon"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* Global Search Bar */}
+            {/* Global Search Bar with Keyboard Shortcut */}
             <div className="relative w-full max-w-md hidden sm:block">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 touch-icon" />
               <input
+                ref={searchInputRef}
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search friends, debts, receipts... (Press / to focus)"
-                className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-100/70 dark:bg-[#121824] border border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-[#0c121e] text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden transition-all"
+                className="w-full h-10 pl-10 pr-9 rounded-xl bg-slate-100/70 dark:bg-[#121824] border border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-[#0c121e] text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden transition-all"
               />
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    tactile.subtle();
+                    setSearchQuery('');
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded-md bg-slate-200/80 dark:bg-white/10 text-[10px] font-mono text-slate-400">
+                  /
+                </span>
+              )}
             </div>
           </div>
 
           {/* Right Header Utilities */}
           <div className="flex items-center gap-2">
+            {/* Account Switcher / Sign In Pill */}
+            <button
+              type="button"
+              onClick={() => {
+                tactile.tap();
+                setIsAuthModalOpen(true);
+              }}
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all touch-icon"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="truncate max-w-[110px]">{activePhone}</span>
+            </button>
+
             {/* React Native Mobile Simulator Modal Trigger */}
             <button
               type="button"
-              onClick={() => setIsMobileSimOpen(true)}
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all"
+              onClick={() => {
+                tactile.tap();
+                setIsMobileSimOpen(true);
+              }}
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all touch-icon"
             >
               <Smartphone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Mobile App</span>
@@ -280,19 +521,25 @@ export default function Home() {
             {/* PostgreSQL Spec DDL */}
             <button
               type="button"
-              onClick={() => setIsArchOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all"
+              onClick={() => {
+                tactile.subtle();
+                setIsArchOpen(true);
+              }}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all touch-icon"
             >
               <Code2 className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Database DDL</span>
+              <span>DDL Spec</span>
             </button>
 
             {/* Server Logs Drawer */}
             <button
               type="button"
-              onClick={() => setIsLogOpen(!isLogOpen)}
+              onClick={() => {
+                tactile.tap();
+                setIsLogOpen(!isLogOpen);
+              }}
               title="Inspect backend stdout & OTPs"
-              className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors touch-icon"
             >
               <Terminal className="w-4 h-4 text-amber-500" />
             </button>
@@ -302,7 +549,7 @@ export default function Home() {
               type="button"
               onClick={handleResetData}
               title="Reset sample loan entries"
-              className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors icon-spin-hover"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -312,7 +559,7 @@ export default function Home() {
               type="button"
               onClick={toggleDark}
               title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors touch-icon"
             >
               {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-600" />}
             </button>
@@ -320,70 +567,90 @@ export default function Home() {
             {/* Primary Add Loan CTA */}
             <button
               type="button"
-              onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all"
+              onClick={() => {
+                tactile.tap();
+                setPrefillFriendName(undefined);
+                setPrefillNotes(undefined);
+                setIsAddModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all tactile-btn"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 touch-icon" />
               <span className="hidden sm:inline">+ Record Loan</span>
             </button>
           </div>
         </header>
 
-        {/* Cockpit Canvas: Zone 2 (Center) + Zone 3 (Right) */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 items-start">
-            {/* Zone 2: Center Stage Content (Col-Span) */}
-            <div className="flex-1 min-w-0 space-y-7 w-full">
-              {/* 2A: Hero Greeting Card */}
-              <HeroBanner
-                overdueCount={overdueCount}
-                upcomingCount={upcomingCount}
-                upcomingAmount={upcomingAmount}
-                onRecordClick={() => setIsAddModalOpen(true)}
-              />
+        {/* Search Results Ribbon if active */}
+        {searchQuery && (
+          <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-2.5 flex items-center justify-between text-xs animate-in slide-in-from-top-1">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-emerald-800 dark:text-emerald-300">
+                Search Results for &ldquo;{searchQuery}&rdquo;:
+              </span>
+              <span className="text-emerald-700/80 dark:text-emerald-400">
+                Found {searchedLoans.length} matching debts
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline"
+            >
+              Clear Filter
+            </button>
+          </div>
+        )}
 
-              {/* 2B: Quick Ledger Hub (Inline Fast Recording) */}
-              <QuickLedgerHub
-                onLoanCreated={loadLedgerData}
-                activePhone={activePhone}
-              />
+        {/* Cockpit Canvas: Zone 2 + Zone 3 */}
+        {loading ? (
+          <SkeletonCockpit />
+        ) : (
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+            <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 items-start">
+              {/* Zone 2: Dynamic Center Stage View */}
+              <div className="flex-1 min-w-0 w-full">
+                {renderCurrentView()}
+              </div>
 
-              {/* 2C: Bento Grid Performance Metrics */}
-              <SplitBento
+              {/* Zone 3: Right Inspector Rail */}
+              <RightInspector
+                loans={loans}
                 summary={summary}
+                onOpenAddModal={() => setIsAddModalOpen(true)}
                 onOpenReminderModal={() => {
                   const overdueLoan = loans.find((l) => l.is_overdue && !l.is_repaid) || loans[0];
                   if (overdueLoan) setSelectedReminderLoan(overdueLoan);
                 }}
-              />
-
-              {/* 2D: Priority Repayments & Follow-ups Table */}
-              <PriorityActionLedger
-                loans={displayedLoans}
-                onToggleRepay={handleToggleRepay}
-                onDeleteLoan={handleDeleteLoan}
-                onViewReceipt={(url) => setActiveReceiptUrl(url)}
-                onSendReminder={(loan) => setSelectedReminderLoan(loan)}
+                onExportCsv={handleExportCsv}
+                onOpenAssistant={() => {
+                  if (loans.length > 0) setSelectedReminderLoan(loans[0]);
+                }}
               />
             </div>
-
-            {/* Zone 3: Right Inspector Rail */}
-            <RightInspector
-              loans={loans}
-              summary={summary}
-              onOpenAddModal={() => setIsAddModalOpen(true)}
-              onOpenReminderModal={() => {
-                const overdueLoan = loans.find((l) => l.is_overdue && !l.is_repaid) || loans[0];
-                if (overdueLoan) setSelectedReminderLoan(overdueLoan);
-              }}
-              onExportCsv={handleExportCsv}
-              onOpenAssistant={() => {
-                if (loans.length > 0) setSelectedReminderLoan(loans[0]);
-              }}
-            />
-          </div>
-        </main>
+          </main>
+        )}
       </div>
+
+      {/* Optimistic Undo Toast Capsule */}
+      {undoAction && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-slate-900 text-white shadow-2xl border border-white/10 animate-in slide-in-from-bottom-4 duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="text-xs font-medium">{undoAction.text}</span>
+          <button
+            type="button"
+            onClick={async () => {
+              tactile.tap();
+              await undoAction.undo();
+              setUndoAction(null);
+            }}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white font-bold text-[11px] transition-colors"
+          >
+            <Undo2 className="w-3 h-3" />
+            <span>Undo</span>
+          </button>
+        </div>
+      )}
 
       {/* Modals & Overlays */}
       <WhatsAppReminderModal
@@ -392,11 +659,36 @@ export default function Home() {
         onClose={() => setSelectedReminderLoan(null)}
       />
 
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentPhone={activePhone}
+        onLoginSuccess={(newPhone) => {
+          setActivePhone(newPhone);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('miniledger_phone', newPhone);
+          }
+          loadLedgerData();
+        }}
+        onOpenLogs={() => {
+          setIsAuthModalOpen(false);
+          setIsLogOpen(true);
+        }}
+      />
+
       <AddLoanDesktopModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setPrefillFriendName(undefined);
+          setPrefillNotes(undefined);
+        }}
         onSubmit={async (data) => {
-          await handleCreateLoan(data);
+          await handleCreateLoan({
+            ...data,
+            friend_name: prefillFriendName || data.friend_name,
+            notes: prefillNotes ? `${prefillNotes} · ${data.notes || ''}` : data.notes,
+          });
         }}
       />
 
@@ -421,7 +713,10 @@ export default function Home() {
           <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-200">
             <button
               type="button"
-              onClick={() => setIsMobileSimOpen(false)}
+              onClick={() => {
+                tactile.subtle();
+                setIsMobileSimOpen(false);
+              }}
               className="absolute -top-10 right-0 px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors"
             >
               ✕ Close Simulator

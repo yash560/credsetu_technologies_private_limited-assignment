@@ -16,6 +16,8 @@ import {
   Search,
 } from 'lucide-react';
 import { LoanEntry, LoanFilter } from '@/types';
+import { tactile } from '@/lib/tactileFeedback';
+import { DeleteConfirmModal } from '@/components/DeleteConfirmModal';
 
 interface PriorityActionLedgerProps {
   loans: LoanEntry[];
@@ -34,16 +36,10 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'overdue' | 'due_soon' | 'settled'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  const triggerHaptic = (ms = 3) => {
-    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-      try { navigator.vibrate([ms]); } catch (_) {}
-    }
-  };
+  const [pendingDeleteLoan, setPendingDeleteLoan] = useState<LoanEntry | null>(null);
 
   // Filter logic
   const filteredLoans = loans.filter((loan) => {
-    // Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchesName = loan.friend_name.toLowerCase().includes(q);
@@ -71,7 +67,6 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
     return name.slice(0, 2).toUpperCase();
   };
 
-  // Distinct avatar color mapping
   const getAvatarBg = (name: string) => {
     const colors = [
       'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
@@ -110,10 +105,10 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
           <button
             type="button"
             onClick={() => {
-              triggerHaptic(2);
+              tactile.subtle();
               setActiveTab('all');
             }}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap active:scale-95 ${
               activeTab === 'all'
                 ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
                 : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
@@ -124,10 +119,10 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
           <button
             type="button"
             onClick={() => {
-              triggerHaptic(2);
+              tactile.subtle();
               setActiveTab('overdue');
             }}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap active:scale-95 ${
               activeTab === 'overdue'
                 ? 'bg-rose-600 text-white shadow-xs'
                 : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
@@ -138,10 +133,10 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
           <button
             type="button"
             onClick={() => {
-              triggerHaptic(2);
+              tactile.subtle();
               setActiveTab('due_soon');
             }}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap active:scale-95 ${
               activeTab === 'due_soon'
                 ? 'bg-amber-500 text-white shadow-xs'
                 : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
@@ -152,10 +147,10 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
           <button
             type="button"
             onClick={() => {
-              triggerHaptic(2);
+              tactile.subtle();
               setActiveTab('settled');
             }}
-            className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap active:scale-95 ${
               activeTab === 'settled'
                 ? 'bg-emerald-600 text-white shadow-xs'
                 : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
@@ -174,8 +169,17 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
           placeholder="Filter by friend name or note..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-50 dark:bg-[#121927] border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:border-indigo-500"
+          className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-50 dark:bg-[#121927] border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all"
         />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-white"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Table / Card List */}
@@ -198,12 +202,12 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
             return (
               <div
                 key={loan.id}
-                className="py-4 first:pt-1 last:pb-1 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/60 dark:hover:bg-white/2 rounded-2xl px-2.5 transition-colors group"
+                className="py-4 first:pt-1 last:pb-1 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/70 dark:hover:bg-white/2 rounded-2xl px-2.5 transition-all group"
               >
                 {/* Friend Info & Notes */}
                 <div className="flex items-start gap-3.5 min-w-0">
                   <div
-                    className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs ${getAvatarBg(
+                    className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs group-hover:scale-105 transition-transform ${getAvatarBg(
                       loan.friend_name
                     )}`}
                   >
@@ -218,8 +222,11 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
                       {loan.receipt_url && (
                         <button
                           type="button"
-                          onClick={() => onViewReceipt(loan.receipt_url!)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-[10px] font-semibold hover:underline"
+                          onClick={() => {
+                            tactile.tap();
+                            onViewReceipt(loan.receipt_url!);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-[10px] font-semibold hover:underline touch-icon"
                         >
                           <Receipt className="w-3 h-3" />
                           <span>Receipt</span>
@@ -242,7 +249,7 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
                     </span>
                   ) : isOverdue ? (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold">
-                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                       Overdue by {loan.days_overdue || 1}d
                     </span>
                   ) : (
@@ -255,7 +262,7 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
 
                 {/* Amount */}
                 <div className="text-left md:text-right shrink-0">
-                  <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                  <div className="text-base sm:text-lg font-black font-mono tabular-nums text-slate-900 dark:text-white tracking-tight">
                     ₹{loan.amount.toLocaleString('en-IN')}
                   </div>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
@@ -263,16 +270,16 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
                   </span>
                 </div>
 
-                {/* Actions: Send Reminder + Toggle Settled + Delete */}
+                {/* Actions: Send Reminder + Toggle Settled + Custom Delete Modal */}
                 <div className="flex items-center gap-2 pt-2 md:pt-0">
                   {!isSettled && (
                     <button
                       type="button"
                       onClick={() => {
-                        triggerHaptic(4);
+                        tactile.tap();
                         onSendReminder(loan);
                       }}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white text-xs font-bold shadow-xs shadow-indigo-600/20 transition-all"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold shadow-xs shadow-indigo-600/20 transition-all tactile-btn"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>▷ Send Reminder</span>
@@ -283,32 +290,30 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      triggerHaptic(3);
+                      tactile.tap();
                       onToggleRepay(loan.id, loan.is_repaid);
                     }}
                     title={isSettled ? 'Mark as Pending' : 'Mark as Settled'}
-                    className={`p-2 rounded-xl border text-xs font-semibold transition-all ${
+                    className={`p-2 rounded-xl border text-xs font-semibold transition-all active:scale-90 ${
                       isSettled
                         ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
                         : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:text-emerald-600'
                     }`}
                   >
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle2 className="w-4 h-4 touch-icon" />
                   </button>
 
-                  {/* Delete button */}
+                  {/* Delete button triggering Custom Modal (NEVER native confirm) */}
                   <button
                     type="button"
                     onClick={() => {
-                      if (confirm(`Remove loan entry for ${loan.friend_name}?`)) {
-                        triggerHaptic(4);
-                        onDeleteLoan(loan.id);
-                      }
+                      tactile.subtle();
+                      setPendingDeleteLoan(loan);
                     }}
                     title="Delete Entry"
-                    className="p-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                    className="p-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors active:scale-90"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4 touch-icon" />
                   </button>
                 </div>
               </div>
@@ -316,6 +321,20 @@ export const PriorityActionLedger: React.FC<PriorityActionLedgerProps> = ({
           })
         )}
       </div>
+
+      {/* Custom Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(pendingDeleteLoan)}
+        onClose={() => setPendingDeleteLoan(null)}
+        friendName={pendingDeleteLoan?.friend_name || ''}
+        amount={pendingDeleteLoan?.amount || 0}
+        onConfirm={() => {
+          if (pendingDeleteLoan) {
+            onDeleteLoan(pendingDeleteLoan.id);
+            setPendingDeleteLoan(null);
+          }
+        }}
+      />
     </div>
   );
 };

@@ -3,6 +3,7 @@
 import React from 'react';
 import { ArrowRight, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
 import { LoanSummary } from '@/types';
+import { tactile } from '@/lib/tactileFeedback';
 
 interface SplitBentoProps {
   summary: LoanSummary | null;
@@ -13,12 +14,6 @@ export const SplitBento: React.FC<SplitBentoProps> = ({
   summary,
   onOpenReminderModal,
 }) => {
-  const triggerHaptic = (ms = 3) => {
-    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-      try { navigator.vibrate([ms]); } catch (_) {}
-    }
-  };
-
   const recoveryRate = summary?.repayment_rate_pct ?? 82;
   const totalLent = summary?.total_lent ?? 34600;
   const totalRepaid = summary?.total_repaid ?? 28400;
@@ -31,7 +26,7 @@ export const SplitBento: React.FC<SplitBentoProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
       {/* Bento Card 1: Repayment Pace (Navy Gradient, Col-Span 7) */}
-      <div className="lg:col-span-7 relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c1427] via-[#101b33] to-[#070b14] border border-slate-800 text-white p-6 sm:p-7 shadow-lg flex flex-col justify-between">
+      <div className="lg:col-span-7 relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c1427] via-[#101b33] to-[#070b14] border border-slate-800 text-white p-6 sm:p-7 shadow-lg flex flex-col justify-between tactile-card">
         {/* Ambient subtle glow */}
         <div className="pointer-events-none absolute -right-10 -bottom-10 h-48 w-48 rounded-full bg-emerald-500/15 blur-3xl" />
         <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-indigo-500/10 blur-2xl" />
@@ -39,23 +34,23 @@ export const SplitBento: React.FC<SplitBentoProps> = ({
         <div className="relative z-10 space-y-4">
           {/* Header pill */}
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold tracking-wider uppercase">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-emerald-400 icon-live-beacon" />
             REPAYMENT PACE
           </div>
 
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
-              <h3 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+              <h3 className="text-3xl sm:text-4xl font-black font-mono tabular-nums tracking-tight text-white">
                 {recoveryRate}% recovered
               </h3>
               <p className="text-xs sm:text-sm text-slate-300 max-w-md leading-relaxed">
-                You&apos;ve collected <strong className="text-white font-semibold">₹{totalRepaid.toLocaleString('en-IN')}</strong> of{' '}
-                <strong className="text-white font-semibold">₹{totalLent.toLocaleString('en-IN')}</strong> lent this quarter. On track to clear all pending dues.
+                You&apos;ve collected <strong className="text-white font-mono font-semibold">₹{totalRepaid.toLocaleString('en-IN')}</strong> of{' '}
+                <strong className="text-white font-mono font-semibold">₹{totalLent.toLocaleString('en-IN')}</strong> lent this quarter. On track to clear all pending dues.
               </p>
             </div>
 
             {/* Circular Gauge */}
-            <div className="relative shrink-0 flex items-center justify-center">
+            <div className="relative shrink-0 flex items-center justify-center group cursor-pointer" onClick={() => tactile.subtle()}>
               <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 96 96">
                 {/* Background Track */}
                 <circle
@@ -82,7 +77,9 @@ export const SplitBento: React.FC<SplitBentoProps> = ({
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-sm font-extrabold text-white">{recoveryRate}%</span>
+                <span className="text-sm font-extrabold font-mono text-white group-hover:scale-110 transition-transform">
+                  {recoveryRate}%
+                </span>
                 <span className="text-[9px] font-bold tracking-wider text-emerald-400 uppercase">Settled</span>
               </div>
             </div>
@@ -97,32 +94,32 @@ export const SplitBento: React.FC<SplitBentoProps> = ({
           <button
             type="button"
             onClick={() => {
-              triggerHaptic(4);
+              tactile.tap();
               onOpenReminderModal();
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-98 text-white text-xs font-bold transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-bold transition-all tactile-btn"
           >
             <span>Send polite reminders</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <ArrowRight className="w-3.5 h-3.5 touch-icon" />
           </button>
         </div>
       </div>
 
       {/* Bento Card 2: Ledger Health (Emerald Mint Card, Col-Span 5) */}
-      <div className="lg:col-span-5 relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/40 dark:from-[#0d1e1c] dark:via-[#0c161a] dark:to-[#071112] border border-emerald-200/80 dark:border-emerald-900/40 p-6 sm:p-7 shadow-xs flex flex-col justify-between">
+      <div className="lg:col-span-5 relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/40 dark:from-[#0d1e1c] dark:via-[#0c161a] dark:to-[#071112] border border-emerald-200/80 dark:border-emerald-900/40 p-6 sm:p-7 shadow-xs flex flex-col justify-between tactile-card">
         {/* Ambient subtle glow */}
         <div className="pointer-events-none absolute -right-6 -bottom-6 h-36 w-36 rounded-full bg-emerald-400/20 blur-2xl" />
 
         <div className="space-y-3">
           {/* Header pill */}
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[11px] font-bold tracking-wider uppercase">
-            <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+            <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400 touch-icon" />
             LEDGER HEALTH
           </div>
 
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400 touch-icon" />
               <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
                 100% receipt verified
               </h3>

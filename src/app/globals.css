@@ -8,23 +8,25 @@
     --foreground: #0f172a;
     --card-bg: #ffffff;
     --card-border: #e2e8f0;
-    --primary: #4f46e5;
-    --primary-hover: #4338ca;
+    --primary: #059669;
+    --primary-hover: #047857;
     --accent: #10b981;
     --overdue: #ef4444;
     --overdue-bg: #fef2f2;
     --overdue-border: #fecaca;
     --muted: #64748b;
+    --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-snappy: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .dark {
-    --background: #090d16;
+    --background: #070b12;
     --foreground: #f8fafc;
-    --card-bg: #111827;
-    --card-border: #1f2937;
-    --primary: #6366f1;
-    --primary-hover: #4f46e5;
-    --accent: #34d399;
+    --card-bg: #0c121e;
+    --card-border: rgba(255, 255, 255, 0.08);
+    --primary: #10b981;
+    --primary-hover: #34d399;
+    --accent: #10b981;
     --overdue: #f87171;
     --overdue-bg: #450a0a;
     --overdue-border: #7f1d1d;
@@ -33,7 +35,6 @@
 
   * {
     box-sizing: border-box;
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
   }
 
   body {
@@ -45,7 +46,121 @@
   }
 }
 
-/* Custom scrollbar */
+/* ==========================================================================
+   THEWEBVALE KINETIC MICRO-INTERACTION ENGINE (thewebvale-design Section 2)
+   ========================================================================== */
+
+/* 1. Touch-Icon Spring Physics */
+.touch-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.22s var(--ease-bounce), color 0.15s ease;
+  will-change: transform;
+}
+.touch-icon:hover {
+  transform: scale(1.18) translateY(-1.5px);
+}
+.touch-icon:active {
+  transform: scale(0.85);
+}
+
+/* 2. Step Spin for Refresh / Reload */
+.icon-spin-hover {
+  transition: transform 0.4s var(--ease-bounce);
+}
+.icon-spin-hover:hover {
+  transform: rotate(180deg);
+}
+.icon-spin-hover:active {
+  transform: rotate(360deg);
+}
+
+/* 3. Pulsating Live Radar Beacon */
+@keyframes beaconRings {
+  0% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+.icon-live-beacon {
+  animation: beaconRings 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+/* 4. Stroke Draw Checkmark */
+@keyframes checkmarkDraw {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+.icon-check-draw {
+  stroke-dasharray: 24;
+  animation: checkmarkDraw 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ==========================================================================
+   1:1 PIXEL-IDENTICAL SKELETON SHIMMER (thewebvale-design Section 5)
+   ========================================================================== */
+@keyframes shimmerWave {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeleton-shimmer-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.6) 50%, 
+    transparent 100%
+  );
+  animation: shimmerWave 1.6s infinite ease-in-out;
+}
+
+.dark .skeleton-shimmer-sweep {
+  background: linear-gradient(
+    90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.08) 50%, 
+    transparent 100%
+  );
+}
+
+/* ==========================================================================
+   TACTILE CARD ELEVATIONS & BUTTON SQUASH PHYSICS
+   ========================================================================== */
+.tactile-card {
+  transition: transform 0.25s var(--ease-bounce), box-shadow 0.25s ease, border-color 0.2s ease;
+}
+.tactile-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+}
+.dark .tactile-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+.tactile-btn {
+  transition: transform 0.15s var(--ease-bounce), background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.tactile-btn:hover {
+  transform: translateY(-1px);
+}
+.tactile-btn:active {
+  transform: scale(0.96);
+}
+
+/* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -54,9 +169,9 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.4);
+  background: rgba(148, 163, 184, 0.3);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.7);
+  background: rgba(148, 163, 184, 0.6);
 }

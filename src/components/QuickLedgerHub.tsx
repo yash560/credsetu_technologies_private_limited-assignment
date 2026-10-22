@@ -12,6 +12,7 @@ import {
   AlertCircle,
   Sparkles,
 } from 'lucide-react';
+import { tactile } from '@/lib/tactileFeedback';
 
 interface QuickLedgerHubProps {
   onLoanCreated: () => void;
@@ -36,14 +37,8 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
   // Preset frequent friends for 1-click fill
   const frequentFriends = ['Rohan Verma', 'Priya Sharma', 'Ankit Gupta', 'Kavita Patel'];
 
-  const triggerHaptic = (ms = 4) => {
-    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-      try { navigator.vibrate([ms]); } catch (_) {}
-    }
-  };
-
   const handleQuickDueDate = (days: number) => {
-    triggerHaptic(2);
+    tactile.subtle();
     const d = new Date();
     d.setDate(d.getDate() + days);
     setDueDate(d.toISOString().split('T')[0]);
@@ -56,25 +51,31 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
 
     if (!friendName.trim()) {
       setErrorMsg('Please specify who borrowed the money.');
+      tactile.warning();
       return;
     }
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       setErrorMsg('Please enter a valid amount in ₹.');
+      tactile.warning();
       return;
     }
     if (!dueDate) {
       setErrorMsg('Please select a repayment due date.');
+      tactile.warning();
       return;
     }
 
     setIsSubmitting(true);
-    triggerHaptic(6);
+    tactile.tap();
 
     try {
       const res = await fetch('/api/loans', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-phone': activePhone,
+        },
         body: JSON.stringify({
           phone: activePhone,
           friend_name: friendName.trim(),
@@ -90,6 +91,7 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
         throw new Error(data.error || 'Failed to record loan');
       }
 
+      tactile.success();
       setSuccessMsg(`₹${numAmount.toLocaleString('en-IN')} lent to ${friendName} recorded.`);
       setFriendName('');
       setAmount('');
@@ -104,16 +106,17 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
       }, 4000);
     } catch (err: any) {
       setErrorMsg(err.message || 'Something went wrong. Please try again.');
+      tactile.warning();
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="rounded-3xl bg-white dark:bg-[#0c121e] border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 shadow-xs">
+    <div className="rounded-3xl bg-white dark:bg-[#0c121e] border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 shadow-xs tactile-card">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+          <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-xs touch-icon">
             ⚡
           </div>
           <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight">
@@ -131,10 +134,10 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
               key={f}
               type="button"
               onClick={() => {
-                triggerHaptic(2);
+                tactile.subtle();
                 setFriendName(f);
               }}
-              className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 font-medium text-[11px] transition-colors whitespace-nowrap"
+              className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 font-medium text-[11px] transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
             >
               {f.split(' ')[0]}
             </button>
@@ -167,7 +170,7 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
               ₹ Amount
             </label>
             <div className="relative">
-              <IndianRupee className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <IndianRupee className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 touch-icon" />
               <input
                 type="number"
                 placeholder="500"
@@ -175,7 +178,7 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
                 step="any"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full h-11 pl-9 pr-3 rounded-xl bg-slate-50 dark:bg-[#121927] border border-slate-200 dark:border-white/10 text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                className="w-full h-11 pl-9 pr-3 rounded-xl bg-slate-50 dark:bg-[#121927] border border-slate-200 dark:border-white/10 text-sm font-mono font-bold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
               />
             </div>
           </div>
@@ -190,7 +193,7 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
                 <button
                   type="button"
                   onClick={() => handleQuickDueDate(3)}
-                  className="text-emerald-600 dark:text-emerald-400 hover:underline"
+                  className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold"
                 >
                   +3d
                 </button>
@@ -198,7 +201,7 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
                 <button
                   type="button"
                   onClick={() => handleQuickDueDate(7)}
-                  className="text-emerald-600 dark:text-emerald-400 hover:underline"
+                  className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold"
                 >
                   +7d
                 </button>
@@ -223,7 +226,7 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full h-11 px-3 rounded-xl bg-slate-50 dark:bg-[#121927] border border-slate-200 dark:border-white/10 text-sm font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all appearance-none"
+                className="w-full h-11 px-3 rounded-xl bg-slate-50 dark:bg-[#121927] border border-slate-200 dark:border-white/10 text-sm font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all appearance-none cursor-pointer"
               >
                 <option value="Dinner & Drinks">Dinner &amp; Drinks</option>
                 <option value="Weekend Trips">Weekend Trips</option>
@@ -242,10 +245,10 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
             <button
               type="button"
               onClick={() => {
-                triggerHaptic(2);
+                tactile.subtle();
                 setShowAttachReceipt(!showAttachReceipt);
               }}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors touch-icon"
             >
               <Paperclip className="w-3.5 h-3.5" />
               {showAttachReceipt ? 'Hide Receipt & Note' : 'Attach Bill Photo or Note'}
@@ -256,12 +259,12 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-bold text-sm tracking-wide shadow-md shadow-emerald-600/25 transition-all disabled:opacity-50"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-sm tracking-wide shadow-md shadow-emerald-600/25 transition-all disabled:opacity-50 tactile-btn"
           >
             {isSubmitting ? (
               <span className="inline-block animate-spin">⏳</span>
             ) : (
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 touch-icon" />
             )}
             <span>+ Record Loan</span>
           </button>
@@ -269,7 +272,7 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
 
         {/* Collapsible Receipt URL / Note input */}
         {showAttachReceipt && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-[#121927] border border-slate-200/60 dark:border-white/5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-[#121927] border border-slate-200/60 dark:border-white/5 animate-in slide-in-from-top-2 duration-150">
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Note / Purpose
@@ -299,13 +302,13 @@ export const QuickLedgerHub: React.FC<QuickLedgerHubProps> = ({
 
         {/* Inline Alerts */}
         {errorMsg && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-medium">
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-medium animate-in fade-in">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
         {successMsg && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold animate-in fade-in">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <span>{successMsg}</span>
           </div>
