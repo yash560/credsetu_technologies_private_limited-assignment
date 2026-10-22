@@ -15,13 +15,14 @@ import { AddLoanDesktopModal } from '@/components/AddLoanDesktopModal';
 import { WhatsAppReminderModal } from '@/components/WhatsAppReminderModal';
 import { MobileSimulator } from '@/components/MobileSimulator';
 import { AuthModal } from '@/components/AuthModal';
+import { MarketingFrontDoor } from '@/components/MarketingFrontDoor';
 import { SkeletonCockpit } from '@/components/SkeletonCockpit';
 import { FriendsDirectoryView } from '@/components/views/FriendsDirectoryView';
 import { RepaymentScheduleView } from '@/components/views/RepaymentScheduleView';
 import { ReceiptsGalleryView } from '@/components/views/ReceiptsGalleryView';
 import { MonthlyAnalyticsView } from '@/components/views/MonthlyAnalyticsView';
 import { SpaceDetailView } from '@/components/views/SpaceDetailView';
-import { LoanEntry, LoanSummary, LoanFilter, UserAccount } from '@/types';
+import { LoanEntry, LoanSummary, LoanFilter, UserAccount, AuthModalTab } from '@/types';
 import { tactile } from '@/lib/tactileFeedback';
 import {
   Menu,
@@ -70,10 +71,12 @@ export default function Home() {
     undo: () => Promise<void>;
   } | null>(null);
 
-  // Auth & Identity State
+  // Auth & Identity State (Strict Auth Wall)
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authInitialTab, setAuthInitialTab] = useState<AuthModalTab>('signin');
   const [activePhone, setActivePhone] = useState('+919876543210');
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Ledger Data State
   const [loans, setLoans] = useState<LoanEntry[]>([]);
@@ -87,6 +90,7 @@ export default function Home() {
       .then((data) => {
         if (data.success && data.user) {
           setCurrentUser(data.user);
+          setIsLoggedIn(true);
           if (data.user.phone) setActivePhone(data.user.phone);
         } else {
           const stored = localStorage.getItem('miniledger_user');
@@ -94,6 +98,7 @@ export default function Home() {
             try {
               const u = JSON.parse(stored);
               setCurrentUser(u);
+              setIsLoggedIn(true);
               if (u.phone) setActivePhone(u.phone);
             } catch {}
           }
@@ -105,9 +110,13 @@ export default function Home() {
           try {
             const u = JSON.parse(stored);
             setCurrentUser(u);
+            setIsLoggedIn(true);
             if (u.phone) setActivePhone(u.phone);
           } catch {}
         }
+      })
+      .finally(() => {
+        setAuthLoading(false);
       });
   }, []);
 
@@ -468,6 +477,35 @@ export default function Home() {
     );
   };
 
+  // 1. Initial Authentication Resolution Gate
+  if (authLoading) {
+    return <SkeletonCockpit />;
+  }
+
+  // 2. Iron-Clad Auth Wall: Unauthenticated visitors see exclusively the Marketing Front Door
+  if (!currentUser) {
+    return (
+      <>
+        <MarketingFrontDoor
+          onOpenAuth={(tab) => {
+            setAuthInitialTab(tab);
+            setIsAuthModalOpen(true);
+          }}
+          isDark={isDark}
+          toggleDark={toggleDark}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          currentUser={currentUser}
+          onAuthSuccess={handleAuthSuccess}
+          onLogout={handleLogout}
+          initialTab={authInitialTab}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#070b12] text-slate-900 dark:text-slate-100 flex transition-colors selection:bg-emerald-500/20 selection:text-emerald-700">
       {/* Zone 1: Left Navigation Rail */}
@@ -538,7 +576,7 @@ export default function Home() {
           </div>
 
           {/* Right Header Utilities */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Account Profile / Sign In Pill */}
             <button
               type="button"
@@ -546,13 +584,13 @@ export default function Home() {
                 tactile.tap();
                 setIsAuthModalOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all touch-icon"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all touch-icon"
             >
-              <div className="w-4 h-4 rounded-full bg-emerald-600 text-white font-bold text-[9px] flex items-center justify-center">
+              <div className="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
                 {currentUser?.name ? currentUser.name[0].toUpperCase() : '✦'}
               </div>
-              <span className="truncate max-w-[120px]">
-                {currentUser?.name ? currentUser.name : 'Sign In / Account'}
+              <span className="hidden sm:inline truncate max-w-[110px]">
+                {currentUser?.name ? currentUser.name : 'Account'}
               </span>
             </button>
 
@@ -563,9 +601,9 @@ export default function Home() {
                 tactile.tap();
                 setIsMobileSimOpen(true);
               }}
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all touch-icon"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all"
             >
-              <Smartphone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <Smartphone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 touch-icon" />
               <span>Mobile App</span>
             </button>
 
@@ -576,9 +614,9 @@ export default function Home() {
                 tactile.subtle();
                 setIsArchOpen(true);
               }}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all touch-icon"
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all"
             >
-              <Code2 className="w-3.5 h-3.5 text-indigo-500" />
+              <Code2 className="w-3.5 h-3.5 text-indigo-500 touch-icon" />
               <span>DDL Spec</span>
             </button>
 
@@ -590,9 +628,9 @@ export default function Home() {
                 setIsLogOpen(!isLogOpen);
               }}
               title="Inspect backend stdout & OTPs"
-              className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors touch-icon"
+              className="hidden md:inline-flex p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors"
             >
-              <Terminal className="w-4 h-4 text-amber-500" />
+              <Terminal className="w-4 h-4 text-amber-500 touch-icon" />
             </button>
 
             {/* Reset Sample Seed */}
@@ -600,9 +638,9 @@ export default function Home() {
               type="button"
               onClick={handleResetData}
               title="Reset sample loan entries"
-              className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors icon-spin-hover"
+              className="hidden md:inline-flex p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-4 h-4 icon-spin-hover" />
             </button>
 
             {/* Light / Dark Mode Toggle */}
@@ -624,7 +662,7 @@ export default function Home() {
                 setPrefillNotes(undefined);
                 setIsAddModalOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all tactile-btn"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all tactile-btn shrink-0"
             >
               <Plus className="w-4 h-4 touch-icon" />
               <span className="hidden sm:inline">+ Record Loan</span>
@@ -716,6 +754,7 @@ export default function Home() {
         currentUser={currentUser}
         onAuthSuccess={handleAuthSuccess}
         onLogout={handleLogout}
+        initialTab={authInitialTab}
       />
 
       <AddLoanDesktopModal

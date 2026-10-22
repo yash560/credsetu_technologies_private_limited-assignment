@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
 
     if (!session) {
       return NextResponse.json(
-        { success: false, error: 'Unauthorized. No active session found.' },
-        { status: 401 }
+        { success: false, authenticated: false, user: null },
+        { status: 200 }
       );
     }
 
