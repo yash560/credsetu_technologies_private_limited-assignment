@@ -21,7 +21,7 @@ import { RepaymentScheduleView } from '@/components/views/RepaymentScheduleView'
 import { ReceiptsGalleryView } from '@/components/views/ReceiptsGalleryView';
 import { MonthlyAnalyticsView } from '@/components/views/MonthlyAnalyticsView';
 import { SpaceDetailView } from '@/components/views/SpaceDetailView';
-import { LoanEntry, LoanSummary, LoanFilter } from '@/types';
+import { LoanEntry, LoanSummary, LoanFilter, UserAccount } from '@/types';
 import { tactile } from '@/lib/tactileFeedback';
 import {
   Menu,
@@ -70,7 +70,8 @@ export default function Home() {
     undo: () => Promise<void>;
   } | null>(null);
 
-  // Auth & Phone Context
+  // Auth & Identity State
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [activePhone, setActivePhone] = useState('+919876543210');
   const [isLoggedIn, setIsLoggedIn] = useState(true);
 
@@ -79,13 +80,57 @@ export default function Home() {
   const [summary, setSummary] = useState<LoanSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize stored phone if any
+  // Initialize Authenticated Session & Stored Phone
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('miniledger_phone');
-      if (stored) setActivePhone(stored);
-    }
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.user) {
+          setCurrentUser(data.user);
+          if (data.user.phone) setActivePhone(data.user.phone);
+        } else {
+          const stored = localStorage.getItem('miniledger_user');
+          if (stored) {
+            try {
+              const u = JSON.parse(stored);
+              setCurrentUser(u);
+              if (u.phone) setActivePhone(u.phone);
+            } catch {}
+          }
+        }
+      })
+      .catch(() => {
+        const stored = localStorage.getItem('miniledger_user');
+        if (stored) {
+          try {
+            const u = JSON.parse(stored);
+            setCurrentUser(u);
+            if (u.phone) setActivePhone(u.phone);
+          } catch {}
+        }
+      });
   }, []);
+
+  const handleAuthSuccess = (user: UserAccount, token: string) => {
+    setCurrentUser(user);
+    if (user.phone) setActivePhone(user.phone);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('miniledger_user', JSON.stringify(user));
+      localStorage.setItem('miniledger_token', token);
+      if (user.phone) localStorage.setItem('miniledger_phone', user.phone);
+    }
+    loadLedgerData();
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setCurrentUser(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('miniledger_user');
+      localStorage.removeItem('miniledger_token');
+    }
+    loadLedgerData();
+  };
 
   // Global Keyboard Shortcut: '/' to focus search, 'Escape' to dismiss
   useEffect(() => {
@@ -392,6 +437,7 @@ export default function Home() {
           overdueCount={overdueCount}
           upcomingCount={upcomingCount}
           upcomingAmount={upcomingAmount}
+          userName={currentUser?.name}
           onRecordClick={() => setIsAddModalOpen(true)}
         />
 
@@ -441,6 +487,7 @@ export default function Home() {
         }}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         activePhone={activePhone}
+        currentUser={currentUser}
       />
 
       {/* Main Workspace Cockpit (Zone 2 + Zone 3) */}
@@ -492,17 +539,21 @@ export default function Home() {
 
           {/* Right Header Utilities */}
           <div className="flex items-center gap-2">
-            {/* Account Switcher / Sign In Pill */}
+            {/* Account Profile / Sign In Pill */}
             <button
               type="button"
               onClick={() => {
                 tactile.tap();
                 setIsAuthModalOpen(true);
               }}
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all touch-icon"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200/60 dark:border-white/5 transition-all touch-icon"
             >
-              <UserCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="truncate max-w-[110px]">{activePhone}</span>
+              <div className="w-4 h-4 rounded-full bg-emerald-600 text-white font-bold text-[9px] flex items-center justify-center">
+                {currentUser?.name ? currentUser.name[0].toUpperCase() : '✦'}
+              </div>
+              <span className="truncate max-w-[120px]">
+                {currentUser?.name ? currentUser.name : 'Sign In / Account'}
+              </span>
             </button>
 
             {/* React Native Mobile Simulator Modal Trigger */}
@@ -662,18 +713,9 @@ export default function Home() {
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        currentPhone={activePhone}
-        onLoginSuccess={(newPhone) => {
-          setActivePhone(newPhone);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('miniledger_phone', newPhone);
-          }
-          loadLedgerData();
-        }}
-        onOpenLogs={() => {
-          setIsAuthModalOpen(false);
-          setIsLogOpen(true);
-        }}
+        currentUser={currentUser}
+        onAuthSuccess={handleAuthSuccess}
+        onLogout={handleLogout}
       />
 
       <AddLoanDesktopModal

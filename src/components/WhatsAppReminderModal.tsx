@@ -28,6 +28,8 @@ export const WhatsAppReminderModal: React.FC<WhatsAppReminderModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [isSendingBridge, setIsSendingBridge] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<string | null>(null);
+  const [friendEmail, setFriendEmail] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   if (!isOpen || !loan) return null;
 
@@ -40,6 +42,35 @@ export const WhatsAppReminderModal: React.FC<WhatsAppReminderModalProps> = ({
   const friendName = loan.friend_name.split(' ')[0] || loan.friend_name;
   const amountStr = `₹${loan.amount.toLocaleString('en-IN')}`;
   const purpose = loan.notes || 'our shared expense';
+
+  const handleSendSmtpEmail = async () => {
+    if (!friendEmail || !friendEmail.includes('@')) return;
+    triggerHaptic(6);
+    setIsSendingEmail(true);
+    setBridgeStatus(null);
+    try {
+      const res = await fetch(`/api/loans/${loan.id}/remind`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: 'email',
+          friend_email: friendEmail,
+          custom_note: currentMessage,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setBridgeStatus(`Email reminder dispatched via SMTP to ${friendEmail}!`);
+      } else {
+        setBridgeStatus(data.error || 'SMTP dispatch failed');
+      }
+      setTimeout(() => setBridgeStatus(null), 4500);
+    } catch {
+      setBridgeStatus('Failed to send SMTP email');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
 
   // Construct anti-awkwardness messages based on selected tone
   const getMessageText = () => {
@@ -197,35 +228,62 @@ export const WhatsAppReminderModal: React.FC<WhatsAppReminderModalProps> = ({
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-800 dark:text-white text-xs font-bold transition-all border border-slate-200 dark:border-white/5"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4 text-emerald-500" />
-                  <span>Copied to Clipboard!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  <span>Copy Message</span>
-                </>
-              )}
-            </button>
+          {/* Action Buttons: WhatsApp & Sovereign SMTP Email */}
+          <div className="space-y-3 pt-2">
+            {/* Email input for SMTP dispatch */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 space-y-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                <span>Direct Transactional Email (SMTP)</span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Master Template</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={friendEmail}
+                  onChange={(e) => setFriendEmail(e.target.value)}
+                  placeholder="friend@example.com (optional)"
+                  className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                />
+                <button
+                  type="button"
+                  disabled={isSendingEmail || !friendEmail}
+                  onClick={handleSendSmtpEmail}
+                  className="px-3 py-2 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold disabled:opacity-40 transition-all flex items-center gap-1.5 shrink-0"
+                >
+                  {isSendingEmail ? 'Dispatching...' : 'Send via SMTP'}
+                </button>
+              </div>
+            </div>
 
-            <button
-              type="button"
-              onClick={handleOpenWhatsApp}
-              className="h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all"
-            >
-              <Send className="w-4 h-4" />
-              <span>Open in WhatsApp</span>
-              <ExternalLink className="w-3.5 h-3.5 opacity-80" />
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-800 dark:text-white text-xs font-bold transition-all border border-slate-200 dark:border-white/5"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-500" />
+                    <span>Copied to Clipboard!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copy Message</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenWhatsApp}
+                className="h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+              >
+                <Send className="w-4 h-4" />
+                <span>Open in WhatsApp</span>
+                <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

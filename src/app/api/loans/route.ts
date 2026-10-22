@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLoans, createLoan, normalizePhone } from '@/lib/db';
 import { createLoanSchema } from '@/lib/validations';
+import { getAuthSessionFromRequest } from '@/lib/auth';
 import { LoanFilter } from '@/types';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const phone = searchParams.get('phone') || '+919876543210';
     const filter = (searchParams.get('filter') || 'all') as LoanFilter;
     const search = searchParams.get('search') || undefined;
 
-    const loans = await getLoans(phone, filter, search);
+    const session = getAuthSessionFromRequest(req);
+    const phone = searchParams.get('phone') || session?.phone || '+919876543210';
+    const userId = session?.userId;
+
+    const loans = await getLoans(phone, filter, search, userId);
 
     return NextResponse.json({
       success: true,
@@ -31,7 +35,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const phone = req.headers.get('x-user-phone') || searchParams.get('phone') || '+919876543210';
+    const session = getAuthSessionFromRequest(req);
+    const phone = req.headers.get('x-user-phone') || searchParams.get('phone') || session?.phone || '+919876543210';
 
     const body = await req.json();
     const parsed = createLoanSchema.safeParse(body);
@@ -47,7 +52,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const newLoan = await createLoan(phone, parsed.data);
+    const newLoan = await createLoan({
+      ...parsed.data,
+      phone,
+      user_id: session?.userId,
+    });
 
     return NextResponse.json(
       {

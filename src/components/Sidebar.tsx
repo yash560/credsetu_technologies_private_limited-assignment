@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { tactile } from '@/lib/tactileFeedback';
 
+import { UserAccount } from '@/types';
+
 interface SidebarProps {
   activeCategory: string;
   setActiveCategory: (cat: string) => void;
@@ -33,6 +35,7 @@ interface SidebarProps {
   onOpenAssistant?: () => void;
   onOpenAuth?: () => void;
   activePhone: string;
+  currentUser?: UserAccount | null;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -46,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAssistant,
   onOpenAuth,
   activePhone,
+  currentUser,
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Wallet, count: null },
@@ -217,28 +221,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </button>
 
-        {/* User Profile Bar with Sign In / Switch Account trigger */}
-        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-100/70 dark:bg-[#121824] border border-slate-200/60 dark:border-white/5">
+        {/* User Profile Bar with Real Identity & Account Settings trigger */}
+        <div
+          onClick={() => {
+            tactile.tap();
+            if (onOpenAuth) onOpenAuth();
+          }}
+          className="cursor-pointer flex items-center justify-between p-2.5 rounded-xl bg-slate-100/70 dark:bg-[#121824] border border-slate-200/60 dark:border-white/5 hover:border-emerald-500/40 transition-all group"
+        >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs shrink-0">
-              YJ
+            <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform">
+              {currentUser?.name ? currentUser.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : 'YJ'}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                Yash Jain
+              <p className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-500 transition-colors">
+                {currentUser?.name || 'Yash Jain'}
               </p>
               <p className="text-[10px] text-slate-400 truncate">
-                {activePhone}
+                {currentUser?.email || activePhone}
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={() => {
-              tactile.tap();
-              if (onOpenAuth) onOpenAuth();
-            }}
-            title="Switch phone or login with OTP"
+            title="Account & Security Settings"
             className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-200/60 dark:hover:bg-white/5 transition-colors touch-icon"
           >
             <UserCheck className="w-4 h-4" />
