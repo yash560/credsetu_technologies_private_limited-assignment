@@ -28,7 +28,7 @@ export function getSmtpConfig() {
   let secure = process.env.SMTP_SECURE !== 'false';
   let user = process.env.SMTP_USER;
   let pass = process.env.SMTP_PASS;
-  const fromName = process.env.SMTP_FROM_NAME || 'MiniLedger by Yash Jain';
+  const fromName = process.env.SMTP_FROM_NAME || 'MiniLedger Security';
 
   // Fallback: Read directly from vault if local on sovereign host
   if ((!host || !pass) && typeof process !== 'undefined' && process.env.HOME) {
@@ -197,7 +197,7 @@ export function renderPasswordResetEmail({
       </div>
     </div>
     <div class="footer">
-      Engineered by <strong>Yash Jain</strong> • TheWebVale Sovereign Infrastructure<br>
+      Engineered for <strong>Credsetu Technologies</strong> • Zero-Leak Security Architecture<br>
       Questions? Reach us at <a href="mailto:${supportEmail}">${supportEmail}</a>
     </div>
   </div>
@@ -260,7 +260,7 @@ export function renderWelcomeEmail({
       </div>
     </div>
     <div class="footer">
-      Engineered by <strong>Yash Jain</strong> • TheWebVale Sovereign Infrastructure
+      Engineered for <strong>Credsetu Technologies</strong> • Zero-Leak Security Architecture
     </div>
   </div>
 </body>
@@ -341,7 +341,7 @@ export function renderRepaymentReminderEmail({
     </div>
     <div class="footer">
       Sent on behalf of ${lenderName} via <strong>${appName}</strong><br>
-      Engineered by Yash Jain • TheWebVale Infrastructure
+      MiniLedger • Credsetu Technologies Private Limited
     </div>
   </div>
 </body>

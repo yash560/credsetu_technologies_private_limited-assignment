@@ -23,7 +23,7 @@ export async function POST(
     const parsed = remindLoanSchema.safeParse(body);
 
     const session = getAuthSessionFromRequest(req);
-    const lenderName = session?.name || 'Yash Jain';
+    const lenderName = session?.name || 'Account Owner';
 
     const friendEmail = parsed.success ? parsed.data.friend_email : undefined;
     const customNote = (parsed.success && parsed.data.custom_note) || loan.notes;

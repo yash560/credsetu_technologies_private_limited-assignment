@@ -231,11 +231,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform">
-              {currentUser?.name ? currentUser.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : 'YJ'}
+              {currentUser?.name ? currentUser.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : 'ML'}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-500 transition-colors">
-                {currentUser?.name || 'Yash Jain'}
+                {currentUser?.name || 'Ledger Account'}
               </p>
               <p className="text-[10px] text-slate-400 truncate">
                 {currentUser?.email || activePhone}

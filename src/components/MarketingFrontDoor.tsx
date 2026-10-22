@@ -429,10 +429,10 @@ export const MarketingFrontDoor: React.FC<MarketingFrontDoorProps> = ({
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="font-extrabold text-slate-900 dark:text-white">MiniLedger</span>
-            <span>• Engineered by Yash Jain</span>
+            <span>• Peer debt tracking & polite repayment reminders</span>
           </div>
           <div className="text-[11px] text-slate-400">
-            TheWebVale Sovereign Infrastructure • Protocol SOP-01 Compliant
+            © {new Date().getFullYear()} Credsetu Technologies Private Limited. All rights reserved.
           </div>
         </div>
       </footer>

@@ -16,7 +16,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   overdueCount,
   upcomingCount,
   upcomingAmount,
-  userName = 'Yash',
+  userName = '',
   onRecordClick,
 }) => {
   return (
@@ -30,7 +30,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
         <div className="space-y-3 max-w-2xl">
           {/* Greeting Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100/80 dark:bg-amber-950/40 border border-amber-300/60 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs font-bold tracking-wide shadow-2xs">
-            <span>👋 GOOD DAY, {userName.toUpperCase()}</span>
+            <span>👋 {userName ? `GOOD DAY, ${userName.toUpperCase()}` : 'WELCOME BACK'}</span>
             <span className="text-amber-500">☀️</span>
           </div>
 
