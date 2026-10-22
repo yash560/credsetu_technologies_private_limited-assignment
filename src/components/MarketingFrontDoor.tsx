@@ -427,9 +427,14 @@ export const MarketingFrontDoor: React.FC<MarketingFrontDoorProps> = ({
       {/* 6. Footer */}
       <footer className="mt-auto py-8 bg-white dark:bg-[#060910] border-t border-slate-200 dark:border-white/5 text-center text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
             <span className="font-extrabold text-slate-900 dark:text-white">MiniLedger</span>
-            <span>• Peer debt tracking & polite repayment reminders</span>
+            <span className="text-slate-400">•</span>
+            <span className="text-slate-600 dark:text-slate-400">Peer debt tracking</span>
+            <span className="text-slate-400">•</span>
+            <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 text-[11px]">
+              Powered by TheWebVale
+            </span>
           </div>
           <div className="text-[11px] text-slate-400">
             © {new Date().getFullYear()} Credsetu Technologies Private Limited. All rights reserved.
